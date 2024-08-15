@@ -1,0 +1,18 @@
+{
+  "name": "prefabs",
+  "displayName": "Prefabs",
+  "description": "Support for prefabs (sprite nesting) in Aseprite",
+  "version": "0.1",
+  "author": { "name": "Horun",
+              "email": "pabu4444@gmail.com",
+              "url": "https://horun.itch.io/" },
+  "contributors": [ ],
+  "publisher": "Horun",
+  "license": "CC-BY-4.0",
+  "categories": [ "Scripts" ],
+  "contributes": {
+    "scripts": [
+        { "path": "./prefabs.lua" }
+    ]
+  }
+}
