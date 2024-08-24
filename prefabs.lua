@@ -415,10 +415,20 @@ local function UpdateLayerVisuals(layer)
     end
 end
 
-local function RefreshSprite(sprite)
-    for _, layer in ipairs(sprite.layers) do
+local function RefreshLayer(layer, updatedSprite)
+    if layer.isGroup then
+        for _, innerLayer in ipairs(layer.layers) do
+            RefreshLayer(innerLayer, updatedSprite)
+        end
+    else
         if IsPrefabLayer(layer) then
-            for _, frame in ipairs(sprite.frames) do
+            if updatedSprite ~= nil then
+                local layerProperties = layer.properties(pluginKey)
+                if cache.sprites[cache.spritePathIndices[layerProperties.filepath]] ~= updatedSprite then
+                    return
+                end
+            end
+            for _, frame in ipairs(layer.sprite.frames) do
                 SetCelIndex(layer, frame)
             end
         end
@@ -594,16 +604,27 @@ local function UpdateDialogElements(layer, frame)
 end
 
 local function OnSpriteChangeUndoRedo(ev)
-    if ev.fromUndo then
-        UpdateDialogElements(app.layer, app.frame)
-        UpdatePrefabCombobox(app.layer)
-        UpdateCelSlider(app.layer, app.cel)
+    if cache.isSpriteChangeInProgress then
+        return
     end
-    for _, sprite in ipairs(app.sprites) do
-        if sprite ~= app.sprite then
-            RefreshSprite(sprite)
+    cache.isSpriteChangeInProgress = true
+    -- it seems that changing cel.properties while switched to another sprite throws an error
+    -- the pcall ensures that the opertation exits gracefully
+    pcall(function ()
+        if ev.fromUndo then
+            UpdateDialogElements(app.layer, app.frame)
+            UpdatePrefabCombobox(app.layer)
+            UpdateCelSlider(app.layer, app.cel)
         end
-    end
+        for _, sprite in ipairs(app.sprites) do
+            if sprite ~= app.sprite then
+                for _, layer in ipairs(sprite.layers) do
+                    RefreshLayer(layer, app.sprite)
+                end
+            end
+        end
+    end)
+    cache.isSpriteChangeInProgress = false
 end
 
 local function OnSiteChange(ev)
@@ -617,7 +638,9 @@ local function OnSiteChange(ev)
         end
         if app.site.sprite then
             app.site.sprite.events:on('change', OnSpriteChangeUndoRedo)
-            RefreshSprite(app.site.sprite)
+            for _, layer in ipairs(app.site.sprite.layers) do
+                RefreshLayer(layer)
+            end
         end
     end
 

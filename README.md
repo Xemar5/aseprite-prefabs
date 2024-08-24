@@ -5,16 +5,17 @@ A simple extension for [Aseprite](https://www.aseprite.org/) which allows you to
 
 ## Features
 1. Nesting images or whole projects (even with multiple layers) inside other projects
-2. Prefab instances automatically update when we go back to the sprite tab containing them
+2. Prefab instances automatically update when we make a change in the prefab itself
+   1. You can place the prefab and the sprite containing prefab instances side by side to see the changes in realtime
 3. Any number of different prefabs (images/projects) can be added to a single project
 4. Any number of prefab instances can be used (each instance needs a separate layer)
 5. Supports displaying a selected frame in the prefab instance
 6. Undo/redo support
 7. Upon opening the `Prefab Window`, all images/projects used as prefabs are opened aswell
-9. Prefab layers will change their color depending on the state of the prefab
-  10. Active (bright green) - the prefab instance is actively being updated
-  11. Empty (dark green) - no prefab is currently selected for this layer (the selected option is \[empty])
-  12. Missing (red) - file associated with the prefab is not opened. All prefab files 
+8. Prefab layers will change their color depending on the state of the prefab
+  1.  Active (bright green) - the prefab instance is actively being updated
+  2.  Empty (dark green) - no prefab is currently selected for this layer (the selected option is \[empty])
+  3.  Missing (red) - file associated with the prefab is not opened. All prefab files 
 
 ## How to install
 1. Download the [Prefabs.aseprite-extension](https://github.com/Xemar5/aseprite-prefabs/blob/main/Prefabs.aseprite-extension) file
@@ -33,4 +34,4 @@ A simple extension for [Aseprite](https://www.aseprite.org/) which allows you to
 2. Opening another file with a plugin requires user permission. It is suggested to set the toggle to trust the plugin for better user experience
 3. All changes made in a prefab layer will be overwritten when you update the corresponding prefab (some other actions will also trigger the prefab instance to be refreshed, overwritting all changes)
 4. Layers of prefab instances are always merged down in the main project
-5. You can place each prefab tab nex to the main project to see both at the same time, but prefab instances do not automatically change whenever you make a change in the original prefab, you need to swich back to the main project tab for changes to take effect. This is because updating all instances on every change would slow down the editor
+5. ~~You can place each prefab tab next to the main project to see both at the same time, but prefab instances do not automatically change whenever you make a change in the original prefab, you need to swich back to the main project tab for changes to take effect. This is because updating all instances on every change would slow down the editor~~ Prefab instances correctly update as soon as the prefab is changed starting from version 0.2
