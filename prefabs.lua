@@ -17,6 +17,7 @@ local optionMissing = "[missing]"
 local prefabWindow
 local prefabWindowCache
 
+local OpenPrefabWindow = function() end
 
 local function ArrayRemove(t, shouldRemove)
     local j = 1
@@ -279,8 +280,14 @@ local function GetPrefabFrameCount(layer)
     return #cache.sprites[spriteIndex].frames
 end
 
-local function GetImage(sprite, celIndex)
-    local copyImage = Image(sprite.width, sprite.height)
+local function GetImage(sprite, celIndex, colorMode, transparentColor)
+    local spec = ImageSpec {
+        width = sprite.width,
+        height = sprite.height,
+        colorMode = colorMode,
+        transparentColor = transparentColor,
+    }
+    local copyImage = Image(spec)
     copyImage:drawSprite(sprite, celIndex)
     local rectangle = copyImage:shrinkBounds()
     return copyImage, rectangle
@@ -302,7 +309,7 @@ local function TryGetImageFromLayer(layer, celIndex)
         return nil, "out of bounds"
     end
 
-    return GetImage(targetSprite, celIndex)
+    return GetImage(targetSprite, celIndex, layer.sprite.spec.colorMode, layer.sprite.spec.transparentColor)
 end
 
 local function SetCelIndex(layer, frame, celIndex)
@@ -424,12 +431,16 @@ local function TryOpenPrefab(layer)
     end
 
     local properties = layer.properties(pluginKey)
+    if properties.filepath == nil then
+        return nil
+    end
+
     if IsOpenedPrefabLayer(layer) then
         local openedSpriteIndex = cache.spritePathIndices[properties.filepath]
         return cache.sprites[openedSpriteIndex]
     else
         local openedSprite
-        local status, err = pcall(function ()
+        local status, err = pcall(function()
             local previousSprite = app.sprite
             openedSprite = app.open(properties.filepath)
             if openedSprite then
@@ -449,6 +460,10 @@ end
 local function OpenAllPrefabs()
     if not app.sprite then
         return
+    end
+
+    if prefabWindow ~= nil then
+        OpenPrefabWindow()
     end
 
     if prefabWindowCache.isOpeningInProgress then
@@ -575,16 +590,20 @@ local function UpdateDialogElements(layer, frame)
             id = "layerIsEmpty2",
             visible = false,
         }
-   end
+    end
 end
 
 local function OnSpriteChangeUndoRedo(ev)
-    if not ev.fromUndo then
-        return
+    if ev.fromUndo then
+        UpdateDialogElements(app.layer, app.frame)
+        UpdatePrefabCombobox(app.layer)
+        UpdateCelSlider(app.layer, app.cel)
     end
-    UpdateDialogElements(app.layer, app.frame)
-    UpdatePrefabCombobox(app.layer)
-    UpdateCelSlider(app.layer, app.cel)
+    for _, sprite in ipairs(app.sprites) do
+        if sprite ~= app.sprite then
+            RefreshSprite(sprite)
+        end
+    end
 end
 
 local function OnSiteChange(ev)
@@ -621,8 +640,14 @@ local function OnSiteChange(ev)
 end
 
 local function NewPrefab()
+    if prefabWindow == nil then
+        OpenPrefabWindow()
+    end
     app.transaction("New prefab layer", function()
-        local layer = app.sprite:newLayer()
+        app.command.NewLayer {
+            top = false,
+        }
+        local layer = app.layer
         local layerProperties = layer.properties(pluginKey)
         layerProperties.isPrefab = true
         UpdateLayerVisuals(layer)
@@ -633,17 +658,19 @@ local function NewPrefab()
     end)
 end
 
-local function OpenPrefabWindow()
+OpenPrefabWindow = function()
     if prefabWindow ~= nil then
         return
     end
 
+    cache.plugin.preferences.opened = true
     prefabWindowCache = {}
 
     app.events:on('sitechange', OnSiteChange)
     prefabWindow = Dialog {
         title = "Prefab Window",
         onclose = function()
+            cache.plugin.preferences.opened = false
             prefabWindow = nil
             app.events:off(OnSiteChange)
             ResetPrefabCache()
@@ -751,7 +778,9 @@ local function OpenPrefabWindow()
 end
 
 function init(plugin)
-    plugin:newMenuGroup{
+    cache.plugin = plugin
+
+    plugin:newMenuGroup {
         id = "prefabs_group",
         title = "Prefabs",
         group = "view_controls"
@@ -771,7 +800,7 @@ function init(plugin)
         group = "prefabs_group",
         onclick = NewPrefab,
         onenabled = function()
-            return prefabWindow ~= nil and app.sprite ~= nil
+            return app.sprite ~= nil
         end
     }
     plugin:newMenuSeparator {
@@ -783,7 +812,7 @@ function init(plugin)
         group = "prefabs_group",
         onclick = OpenAllPrefabs,
         onenabled = function()
-            return prefabWindow ~= nil and app.sprite ~= nil
+            return app.sprite ~= nil
         end,
     }
 
@@ -793,7 +822,7 @@ function init(plugin)
         group = "layer_popup_new",
         onclick = NewPrefab,
         onenabled = function()
-            return prefabWindow ~= nil and app.sprite ~= nil
+            return app.sprite ~= nil
         end
     }
     plugin:newCommand {
@@ -802,9 +831,13 @@ function init(plugin)
         group = "layer_new",
         onclick = NewPrefab,
         onenabled = function()
-            return prefabWindow ~= nil and app.sprite ~= nil
+            return app.sprite ~= nil
         end
     }
+
+    if plugin.preferences.opened then
+        OpenPrefabWindow()
+    end
 end
 
 function exit(plugin)

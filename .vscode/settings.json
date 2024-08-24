@@ -1,0 +1,10 @@
+{
+    "Lua.diagnostics.globals": [
+        "app",
+        "Image",
+        "Point",
+        "Color",
+        "Dialog",
+        "ImageSpec"
+    ]
+}
