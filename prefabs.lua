@@ -313,65 +313,67 @@ local function TryGetImageFromLayer(layer, celIndex)
 end
 
 local function SetCelIndex(layer, frame, celIndex)
-    local cel = layer:cel(frame)
-    local celProperties = cel and cel.properties(pluginKey) or {}
-    celIndex =
-        celIndex ~= nil and celIndex or
-        celProperties.celIndex ~= nil and celProperties.celIndex or
-        0
-    if celIndex == 0 then
-        if not cel then
-            app.transaction("Change prefab cel index", function()
-                cel = layer.sprite:newCel(layer, frame)
-                celProperties = cel.properties(pluginKey)
-                celProperties.celIndex = 0
-                app.refresh()
-            end)
-        else
-            local emptyImage = Image(cel.image.width, cel.image.height)
-            if not cel.image:isEqual(emptyImage) then
-                app.transaction("Change prefab cel index", function()
-                    cel.image = emptyImage
-                    celProperties.celIndex = 0
-                    app.refresh()
-                end)
-            elseif celProperties.celIndex ~= celIndex then
-                app.transaction("Change prefab cel index", function()
-                    celProperties.celIndex = 0
-                end)
-            end
-        end
-    else
-        local image, ctx = TryGetImageFromLayer(layer, celIndex)
-        if image then
+    pcall(function ()
+        local cel = layer:cel(frame)
+        local celProperties = cel and cel.properties(pluginKey) or {}
+        celIndex =
+            celIndex ~= nil and celIndex or
+            celProperties.celIndex ~= nil and celProperties.celIndex or
+            0
+        if celIndex == 0 then
             if not cel then
                 app.transaction("Change prefab cel index", function()
-                    cel = layer.sprite:newCel(layer, frame, image, Point())
+                    cel = layer.sprite:newCel(layer, frame)
                     celProperties = cel.properties(pluginKey)
-                    celProperties.celIndex = celIndex
+                    celProperties.celIndex = 0
                     app.refresh()
                 end)
-            elseif not cel.image:isEqual(image) then
-                app.transaction("Change prefab cel index", function()
-                    cel.image = image
-                    celProperties.celIndex = celIndex
-                    app.refresh()
-                end)
-            elseif celProperties.celIndex ~= celIndex then
-                app.transaction("Change prefab cel index", function()
-                    celProperties.celIndex = celIndex
-                end)
+            else
+                local emptyImage = Image(cel.image.width, cel.image.height)
+                if not cel.image:isEqual(emptyImage) then
+                    app.transaction("Change prefab cel index", function()
+                        cel.image = emptyImage
+                        celProperties.celIndex = 0
+                        app.refresh()
+                    end)
+                elseif celProperties.celIndex ~= celIndex then
+                    app.transaction("Change prefab cel index", function()
+                        celProperties.celIndex = 0
+                    end)
+                end
             end
-        elseif IsEmptyPrefabLayer(layer) then
-            local emptyImage = Image(cel.image.width, cel.image.height)
-            if not cel.image:isEqual(emptyImage) then
-                app.transaction("Change prefab cel index", function()
-                    cel.image = emptyImage
-                    app.refresh()
-                end)
+        else
+            local image, ctx = TryGetImageFromLayer(layer, celIndex)
+            if image then
+                if not cel then
+                    app.transaction("Change prefab cel index", function()
+                        cel = layer.sprite:newCel(layer, frame, image, Point())
+                        celProperties = cel.properties(pluginKey)
+                        celProperties.celIndex = celIndex
+                        app.refresh()
+                    end)
+                elseif not cel.image:isEqual(image) then
+                    app.transaction("Change prefab cel index", function()
+                        cel.image = image
+                        celProperties.celIndex = celIndex
+                        app.refresh()
+                    end)
+                elseif celProperties.celIndex ~= celIndex then
+                    app.transaction("Change prefab cel index", function()
+                        celProperties.celIndex = celIndex
+                    end)
+                end
+            elseif IsEmptyPrefabLayer(layer) then
+                local emptyImage = Image(cel.image.width, cel.image.height)
+                if not cel.image:isEqual(emptyImage) then
+                    app.transaction("Change prefab cel index", function()
+                        cel.image = emptyImage
+                        app.refresh()
+                    end)
+                end
             end
         end
-    end
+    end)
 end
 
 local function GetPrefabOptionsForSprite(sprite, layer)
@@ -610,20 +612,18 @@ local function OnSpriteChangeUndoRedo(ev)
     cache.isSpriteChangeInProgress = true
     -- it seems that changing cel.properties while switched to another sprite throws an error
     -- the pcall ensures that the opertation exits gracefully
-    pcall(function ()
-        if ev.fromUndo then
-            UpdateDialogElements(app.layer, app.frame)
-            UpdatePrefabCombobox(app.layer)
-            UpdateCelSlider(app.layer, app.cel)
-        end
-        for _, sprite in ipairs(app.sprites) do
-            if sprite ~= app.sprite then
-                for _, layer in ipairs(sprite.layers) do
-                    RefreshLayer(layer, app.sprite)
-                end
+    if ev.fromUndo then
+        UpdateDialogElements(app.layer, app.frame)
+        UpdatePrefabCombobox(app.layer)
+        UpdateCelSlider(app.layer, app.cel)
+    end
+    for _, sprite in ipairs(app.sprites) do
+        if sprite ~= app.sprite then
+            for _, layer in ipairs(sprite.layers) do
+                RefreshLayer(layer, app.sprite)
             end
         end
-    end)
+    end
     cache.isSpriteChangeInProgress = false
 end
 
