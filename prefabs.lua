@@ -293,6 +293,17 @@ local function GetImage(sprite, celIndex, colorMode, transparentColor)
     return copyImage, rectangle
 end
 
+local function GetEmptyImage(cel)
+    local emptySpec = ImageSpec{
+        width = cel.image.width,
+        height = cel.image.height,
+        colorMode = cel.sprite.colorMode,
+        transparentColor = cel.sprite.transparentColor,
+    }
+    local emptyImage = Image(emptySpec)
+    return emptyImage
+end
+
 local function TryGetImageFromLayer(layer, celIndex)
     if not IsOpenedPrefabLayer(layer) then
         return nil, "not a valid prefab"
@@ -329,7 +340,7 @@ local function SetCelIndex(layer, frame, celIndex)
                     app.refresh()
                 end)
             else
-                local emptyImage = Image(cel.image.width, cel.image.height)
+                local emptyImage = GetEmptyImage(cel)
                 if not cel.image:isEqual(emptyImage) then
                     app.transaction("Change prefab cel index", function()
                         cel.image = emptyImage
@@ -364,7 +375,7 @@ local function SetCelIndex(layer, frame, celIndex)
                     end)
                 end
             elseif IsEmptyPrefabLayer(layer) then
-                local emptyImage = Image(cel.image.width, cel.image.height)
+                local emptyImage = GetEmptyImage(cel)
                 if not cel.image:isEqual(emptyImage) then
                     app.transaction("Change prefab cel index", function()
                         cel.image = emptyImage
