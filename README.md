@@ -18,7 +18,7 @@ A simple extension for [Aseprite](https://www.aseprite.org/) which allows you to
   3.  Missing (red) - file associated with the prefab is not opened. All prefab files 
 
 ## How to install
-1. Download the [Prefabs.aseprite-extension](https://github.com/Xemar5/aseprite-prefabs/blob/main/Prefabs.aseprite-extension) file
+1. Download the [Prefabs.aseprite-extension](https://github.com/Xemar5/aseprite-prefabs/releases/latest) file from the latest release
 2. Double-click the downloaded file to install the extension
 
 ## How to use
