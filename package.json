@@ -2,7 +2,7 @@
   "name": "prefabs",
   "displayName": "Prefabs",
   "description": "Support for prefabs (sprite nesting) in Aseprite",
-  "version": "0.3",
+  "version": "0.4",
   "author": { "name": "Horun",
               "email": "pabu4444@gmail.com",
               "url": "https://horun.itch.io/" },

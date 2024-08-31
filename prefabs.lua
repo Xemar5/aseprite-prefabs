@@ -707,6 +707,7 @@ OpenPrefabWindow = function()
             cache.plugin.preferences.opened = false
             prefabWindow = nil
             app.events:off(OnSiteChange)
+            app.site.sprite.events:off(OnSpriteChangeUndoRedo)
             ResetPrefabCache()
         end,
     }
