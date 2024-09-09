@@ -304,6 +304,54 @@ local function GetEmptyImage(cel)
     return emptyImage
 end
 
+local function TryParseStringToIndices(frames, text)
+    local values = {}
+    for index, frame in ipairs(frames) do
+        local func, err = load([[
+local function __TryParseStringToIndices(i, f, c)
+    return ]] .. text .. [[ 
+end
+return __TryParseStringToIndices(]] .. index .. ", " .. frame.frameNumber .. ", " .. #frames .. ")")
+        if err or not func then
+            return nil, err
+        end
+        local value
+        if not pcall(function ()
+            value = func()
+        end) then
+            return nil, "exception"
+        end
+        if type(value) == "string" then
+            value = tonumber(value)
+        end
+        if not value or type(value) ~= "number" then
+            return nil, "not a number"
+        end
+        values[index] = math.tointeger(value)
+    end
+    return values, nil
+end
+
+local function IsValidStringToIndices(frames, text)
+    local values, err = TryParseStringToIndices(frames, text)
+    return not err
+end
+
+local function DisplayStringToIndices(frames, text)
+    local values, err = TryParseStringToIndices(frames, text)
+    if err or not values then
+        return "Invalid input (i - index, f - frame, c - count)"
+    end
+    local displayText = "["
+    local separator = ""
+    for _, value in pairs(values) do
+        displayText = displayText .. separator .. value
+        separator = ", "
+    end
+    displayText = displayText .. "]"
+    return displayText
+end
+
 local function TryGetImageFromLayer(layer, celIndex)
     if not IsOpenedPrefabLayer(layer) then
         return nil, "not a valid prefab"
@@ -543,8 +591,9 @@ local function UpdateCelSlider(layer, cel)
     end
 end
 
-local function UpdateDialogElements(layer, frame)
+local function UpdateDialogElements(layer)
     if IsPrefabLayer(layer) then
+        local frames = app.range.type == RangeType.LAYERS and app.sprite.frames or app.range.frames
         prefabWindow:modify {
             id = "notSelectedLabel1",
             visible = false,
@@ -564,13 +613,24 @@ local function UpdateDialogElements(layer, frame)
         }
         prefabWindow:modify {
             id = "invalidCelLabel",
-            visible = IsOpenedPrefabLayer(layer) and not IsCelIndexValid(layer, frame),
-            text = "" .. (GetPrefabCelIndex(layer, frame) or 0) .. " > " .. (GetPrefabFrameCount(layer) or 0),
+            visible = IsOpenedPrefabLayer(layer) and #frames == 1 and not IsCelIndexValid(layer, frames[1]),
+            text = "" .. (GetPrefabCelIndex(layer, frames[1]) or 0) .. " > " .. (GetPrefabFrameCount(layer) or 0),
         }
         prefabWindow:modify {
             id = "prefabCel",
             enabled = IsOpenedPrefabLayer(layer) or not IsValidPrefabLayer(layer),
-            visible = true,
+            visible = #frames == 1,
+        }
+        prefabWindow:modify {
+            id = "prefabCelsText",
+            enabled = IsOpenedPrefabLayer(layer) or not IsValidPrefabLayer(layer),
+            visible = #frames > 1,
+        }
+        prefabWindow:modify {
+            id = "prefabCelsButton",
+            enabled = (IsOpenedPrefabLayer(layer) or not IsValidPrefabLayer(layer)) and #frames > 1 and IsValidStringToIndices(frames, prefabWindow.data.prefabCelsText),
+            text = DisplayStringToIndices(frames, prefabWindow.data.prefabCelsText),
+            visible = #frames > 1,
         }
         prefabWindow:modify {
             id = "layerIsEmpty1",
@@ -606,6 +666,14 @@ local function UpdateDialogElements(layer, frame)
             visible = false,
         }
         prefabWindow:modify {
+            id = "prefabCelsText",
+            visible = false,
+        }
+        prefabWindow:modify {
+            id = "prefabCelsButton",
+            visible = false,
+        }
+        prefabWindow:modify {
             id = "layerIsEmpty1",
             visible = false,
         }
@@ -624,7 +692,7 @@ local function OnSpriteChangeUndoRedo(ev)
     -- it seems that changing cel.properties while switched to another sprite throws an error
     -- the pcall ensures that the opertation exits gracefully
     if ev.fromUndo then
-        UpdateDialogElements(app.layer, app.frame)
+        UpdateDialogElements(app.layer)
         UpdatePrefabCombobox(app.layer)
         UpdateCelSlider(app.layer, app.cel)
     end
@@ -659,7 +727,7 @@ local function OnSiteChange(ev)
         prefabWindowCache.cel ~= app.site.cel or
         prefabWindowCache.layer ~= app.site.layer or
         prefabWindowCache.frame ~= app.site.frame then
-        UpdateDialogElements(app.site.layer, app.site.frame)
+        UpdateDialogElements(app.site.layer)
         if app.site.sprite then
             UpdatePrefabCombobox(app.site.layer)
             UpdateCelSlider(app.site.layer, app.site.cel)
@@ -685,11 +753,21 @@ local function NewPrefab()
         local layerProperties = layer.properties(pluginKey)
         layerProperties.isPrefab = true
         UpdateLayerVisuals(layer)
-        UpdateDialogElements(app.site.layer, app.site.frame)
+        UpdateDialogElements(app.site.layer)
         UpdatePrefabCombobox(app.site.layer)
         UpdateCelSlider(app.site.layer, app.site.cel)
         UpdateLayerVisuals(app.site.layer)
     end)
+end
+
+local function ClosePrefabWindow()
+    cache.plugin.preferences.opened = false
+    prefabWindow = nil
+    app.events:off(OnSiteChange)
+    if app.site.sprite then
+        app.site.sprite.events:off(OnSpriteChangeUndoRedo)
+    end
+    ResetPrefabCache()
 end
 
 OpenPrefabWindow = function()
@@ -703,15 +781,7 @@ OpenPrefabWindow = function()
     app.events:on('sitechange', OnSiteChange)
     prefabWindow = Dialog {
         title = "Prefab Window",
-        onclose = function()
-            cache.plugin.preferences.opened = false
-            prefabWindow = nil
-            app.events:off(OnSiteChange)
-            if app.site.sprite then
-                app.site.sprite.events:off(OnSpriteChangeUndoRedo)
-            end
-            ResetPrefabCache()
-        end,
+        onclose = ClosePrefabWindow,
     }
     prefabWindow:label {
         id = "notSelectedLabel1",
@@ -746,7 +816,7 @@ OpenPrefabWindow = function()
                     UpdateCelSlider(app.layer, app.cel)
                     UpdateLayerVisuals(app.layer)
                     UpdatePrefabCombobox(app.layer)
-                    UpdateDialogElements(app.layer, app.frame)
+                    UpdateDialogElements(app.layer)
                 end)
             end
         end
@@ -759,7 +829,31 @@ OpenPrefabWindow = function()
                 return
             end
             SetCelIndex(app.layer, app.frame, prefabWindow.data.prefabCel)
-            UpdateDialogElements(app.layer, app.frame)
+            UpdateDialogElements(app.layer)
+        end
+    }
+    prefabWindow:entry {
+        id = "prefabCelsText",
+        label = "Frame",
+        text = "i",
+        onchange = function ()
+            UpdateDialogElements(app.layer)
+        end
+    }
+    prefabWindow:button {
+        id = "prefabCelsButton",
+        text = "Load",
+        onclick = function ()
+            local frames = app.range.type == RangeType.LAYERS and app.sprite.frames or app.range.frames
+            local values, err = TryParseStringToIndices(frames, prefabWindow.data.prefabCelsText)
+            if err or not values then
+                return
+            end
+            app.transaction("Apply multuple cels", function ()
+                for index, frame in ipairs(frames) do
+                    SetCelIndex(app.layer, frame, values[index])
+                end
+            end)
         end
     }
     prefabWindow:button {
@@ -772,7 +866,7 @@ OpenPrefabWindow = function()
             if openedSprite then
                 app.sprite = previousSprite
                 UpdateLayerVisuals(app.layer)
-                UpdateDialogElements(app.layer, app.frame)
+                UpdateDialogElements(app.layer)
             end
         end
     }
@@ -790,7 +884,7 @@ OpenPrefabWindow = function()
                         UpdateCelSlider(app.layer, app.cel)
                         UpdateLayerVisuals(app.layer)
                         UpdatePrefabCombobox(app.layer)
-                        UpdateDialogElements(app.layer, app.frame)
+                        UpdateDialogElements(app.layer)
                     end)
                 end
             end
@@ -810,7 +904,7 @@ OpenPrefabWindow = function()
         wait = false,
     }
 
-    UpdateDialogElements(nil, nil)
+    UpdateDialogElements(nil)
     OnSiteChange({})
 end
 
@@ -878,5 +972,10 @@ function init(plugin)
 end
 
 function exit(plugin)
+    local previousOpened = cache.plugin.preferences.opened
+    if prefabWindow then
+        prefabWindow:close()
+    end
+    cache.plugin.preferences.opened = previousOpened
     ResetPrefabCache()
 end

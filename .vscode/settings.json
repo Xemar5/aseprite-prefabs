@@ -5,6 +5,7 @@
         "Point",
         "Color",
         "Dialog",
-        "ImageSpec"
+        "ImageSpec",
+        "RangeType"
     ]
 }
