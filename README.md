@@ -43,6 +43,7 @@ A simple extension for [Aseprite](https://www.aseprite.org/) which allows you to
       - `i` - the index in the selection, starting from 1 (e.g. 1, 2, 3, 4, 5, ...)
       - `f` - the selected frame number (i.e. if you start the selection from frame 5 to 8, it will be 5, 6, 7, 8)
       - `c` - the count of the selection (the number of selected frames)
+      - `x` - the current value in selected frame
 3. Press the button below the text field to apply the change to selected frames
    - A live result is displayed on the button after each change in the text field
    - If there is an error with the text input, the button will be disabled
@@ -52,6 +53,7 @@ Examples:
 - `2 + 2 * 2` - set all frames to 6 (order of operations matter; you can use parenthesis `( )`)
 - `i` - set frames to [1, 2, 3, 4, ...]
 - `i + 2` - set frames to [3, 4, 5, 6, ...]
+- `x + 1` - increase each selected frame by 1
 - `c + 1 - i` - set frames to [..., 4, 3, 2, 1] (reverse order)
 - `(i - 1) % 3 + 2` - set frames to loop back after 3rd frame (second to last number), starting from 2 (last number) - [2, 3, 4, 2, 3, 4, 2, 3, ...]
 - `math.sin(i)` - calculate sinus from the current frame and round it to nearest whole number
