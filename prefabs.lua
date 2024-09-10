@@ -328,7 +328,7 @@ end
 
 local function TryParseStringToIndices(layer, frames, text)
     local func, err = load([[
-local function __TryParseStringToIndices(i, f, c)
+local function __TryParseStringToIndices(i, f, c, x)
 return ]] .. text .. [[ 
 end
 return __TryParseStringToIndices]])
@@ -343,7 +343,8 @@ return __TryParseStringToIndices]])
     end
     local values = {}
     for index, frame in ipairs(frames) do
-        local value = parseFunction(index, frame.frameNumber, #frames)
+        local currentCel = GetPrefabCelIndex(layer, frame)
+        local value = parseFunction(index, frame.frameNumber, #frames, currentCel)
         if type(value) == "string" then
             local prefabSprite = GetPrefabSprite(layer)
             if not prefabSprite then
@@ -891,6 +892,7 @@ OpenPrefabWindow = function()
                     SetCelIndex(app.layer, frame, values[index])
                 end
             end)
+            UpdateDialogElements(app.layer)
         end
     }
     prefabWindow:button {
