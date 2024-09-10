@@ -57,6 +57,9 @@ Examples:
 - `math.sin(i)` - calculate sinus from the current frame and round it to nearest whole number
 - `"Idle"` - set frames to match frames used in tag "Idle" in the prefab
 
+![Aseprite_VhARvOfRZn](https://github.com/user-attachments/assets/5756195d-d070-406e-a975-34225b77e719)
+
+
 ## Limitations
 1. You can't edit the prefab inside the main project, you need to update the prefab sprites directly
 2. Opening another file with a plugin requires user permission. It is suggested to set the toggle to trust the plugin for better user experience
