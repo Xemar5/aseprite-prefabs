@@ -226,6 +226,28 @@ local function GetPrefabIndexFromLayer(layer)
     return spriteIndex
 end
 
+local function GetPrefabSprite(layer)
+    if layer == nil then
+        return nil
+    end
+
+    local properties = layer.properties(pluginKey)
+    if properties.isPrefab == nil then
+        return nil
+    end
+
+    if properties.filepath == nil then
+        return nil
+    end
+
+    local spriteIndex = cache.spritePathIndices[properties.filepath]
+    if spriteIndex == nil then
+        return nil
+    end
+
+    return cache.sprites[spriteIndex]
+end
+
 local function GetPrefabCelIndex(layer, frame)
     if frame == nil then
         return nil
@@ -304,25 +326,40 @@ local function GetEmptyImage(cel)
     return emptyImage
 end
 
-local function TryParseStringToIndices(frames, text)
+local function TryParseStringToIndices(layer, frames, text)
+    local func, err = load([[
+local function __TryParseStringToIndices(i, f, c)
+return ]] .. text .. [[ 
+end
+return __TryParseStringToIndices]])
+    if err or not func then
+        return nil, err
+    end
+    local parseFunction
+    if not pcall(function ()
+        parseFunction = func()
+    end) then
+        return nil, "exception"
+    end
     local values = {}
     for index, frame in ipairs(frames) do
-        local func, err = load([[
-local function __TryParseStringToIndices(i, f, c)
-    return ]] .. text .. [[ 
-end
-return __TryParseStringToIndices(]] .. index .. ", " .. frame.frameNumber .. ", " .. #frames .. ")")
-        if err or not func then
-            return nil, err
-        end
-        local value
-        if not pcall(function ()
-            value = func()
-        end) then
-            return nil, "exception"
-        end
+        local value = parseFunction(index, frame.frameNumber, #frames)
         if type(value) == "string" then
-            value = tonumber(value)
+            local prefabSprite = GetPrefabSprite(layer)
+            if not prefabSprite then
+                return nil, "not a prefab layer"
+            end
+            local tagFound = false
+            for tagIndex, tag in ipairs(prefabSprite.tags) do
+                if tag.name == value then
+                    tagFound = true
+                    value = (index - 1) % tag.frames + tag.fromFrame.frameNumber
+                    break;
+                end
+            end
+            if not tagFound then
+                value = tonumber(value)
+            end
         end
         if not value or type(value) ~= "number" then
             return nil, "not a number"
@@ -332,13 +369,13 @@ return __TryParseStringToIndices(]] .. index .. ", " .. frame.frameNumber .. ", 
     return values, nil
 end
 
-local function IsValidStringToIndices(frames, text)
-    local values, err = TryParseStringToIndices(frames, text)
+local function IsValidStringToIndices(layer, frames, text)
+    local values, err = TryParseStringToIndices(layer, frames, text)
     return not err
 end
 
-local function DisplayStringToIndices(frames, text)
-    local values, err = TryParseStringToIndices(frames, text)
+local function DisplayStringToIndices(layer, frames, text)
+    local values, err = TryParseStringToIndices(layer, frames, text)
     if err or not values then
         return "Invalid input (i - index, f - frame, c - count)"
     end
@@ -628,8 +665,8 @@ local function UpdateDialogElements(layer)
         }
         prefabWindow:modify {
             id = "prefabCelsButton",
-            enabled = (IsOpenedPrefabLayer(layer) or not IsValidPrefabLayer(layer)) and #frames > 1 and IsValidStringToIndices(frames, prefabWindow.data.prefabCelsText),
-            text = DisplayStringToIndices(frames, prefabWindow.data.prefabCelsText),
+            enabled = (IsOpenedPrefabLayer(layer) or not IsValidPrefabLayer(layer)) and #frames > 1 and IsValidStringToIndices(layer, frames, prefabWindow.data.prefabCelsText),
+            text = DisplayStringToIndices(layer, frames, prefabWindow.data.prefabCelsText),
             visible = #frames > 1,
         }
         prefabWindow:modify {
@@ -845,7 +882,7 @@ OpenPrefabWindow = function()
         text = "Load",
         onclick = function ()
             local frames = app.range.type == RangeType.LAYERS and app.sprite.frames or app.range.frames
-            local values, err = TryParseStringToIndices(frames, prefabWindow.data.prefabCelsText)
+            local values, err = TryParseStringToIndices(app.layer, frames, prefabWindow.data.prefabCelsText)
             if err or not values then
                 return
             end
